@@ -51,13 +51,24 @@ export const App: React.FC = () => {
     setIsExportMenuOpen(false);
     if (!reportRef.current) return;
     
-    // We no longer need to switch tabs because we render a dedicated hidden report component
-    
     try {
+      // Small delay to ensure rendering stability
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       const imgData = await toPng(reportRef.current, {
         cacheBust: true,
-        backgroundColor: '#ffffff', // white background for report
-        pixelRatio: 2 // Higher quality
+        backgroundColor: '#ffffff',
+        width: 1000,
+        pixelRatio: 2,
+        style: {
+          // Ensure the captured clone is visible and positioned correctly
+          position: 'static',
+          left: '0',
+          top: '0',
+          transform: 'none',
+          visibility: 'visible',
+          display: 'block'
+        }
       });
       
       const pdf = new jsPDF({
@@ -69,9 +80,6 @@ export const App: React.FC = () => {
       const imgProps = pdf.getImageProperties(imgData);
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      
-      // If height exceeds A4, we might need multi-page support, but for now let's just fit width
-      // Ideally we'd split it, but that's complex. Let's just add the image.
       
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(`tolstack_report_${config.name.replace(/\s+/g, '_')}.pdf`);
@@ -377,7 +385,17 @@ export const App: React.FC = () => {
       </main>
       
       {/* Hidden Report Container for PDF Generation */}
-      <div className="absolute left-[-9999px] top-0 w-[1000px]" ref={reportRef}>
+      <div 
+        style={{ 
+          position: 'fixed', 
+          left: '-5000px', 
+          top: 0, 
+          width: '1000px',
+          zIndex: -1000,
+          visibility: 'visible' // Ensure it's technically visible for capture
+        }} 
+        ref={reportRef}
+      >
         <FullReport config={config} results={results} />
       </div>
       
