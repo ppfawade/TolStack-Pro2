@@ -4,6 +4,7 @@ import { calculateStackup } from './utils/calculationService';
 import { DimensionEditor } from './components/DimensionEditor';
 import { ResultCharts } from './components/ResultCharts';
 import { SummaryPanel } from './components/SummaryPanel';
+import { FullReport } from './components/FullReport';
 import { ArrowRight, Save, Upload, RotateCcw, Box, Layers, BarChart3, Calculator, Ruler, DraftingCompass, Grid, Settings2, Gauge, Wand2, FileJson, FileText, ChevronDown } from 'lucide-react';
 import { MANUFACTURING_PROCESSES } from './constants';
 import { toPng } from 'html-to-image';
@@ -50,18 +51,13 @@ export const App: React.FC = () => {
     setIsExportMenuOpen(false);
     if (!reportRef.current) return;
     
-    // Switch to analyze tab if not already there to ensure charts are rendered
-    const previousTab = activeTab;
-    if (activeTab !== 'analyze') {
-      setActiveTab('analyze');
-      // Wait for render
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
-
+    // We no longer need to switch tabs because we render a dedicated hidden report component
+    
     try {
       const imgData = await toPng(reportRef.current, {
         cacheBust: true,
-        backgroundColor: '#f8fafc' // slate-50
+        backgroundColor: '#ffffff', // white background for report
+        pixelRatio: 2 // Higher quality
       });
       
       const pdf = new jsPDF({
@@ -74,15 +70,14 @@ export const App: React.FC = () => {
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
       
+      // If height exceeds A4, we might need multi-page support, but for now let's just fit width
+      // Ideally we'd split it, but that's complex. Let's just add the image.
+      
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(`tolstack_report_${config.name.replace(/\s+/g, '_')}.pdf`);
     } catch (error) {
       console.error("Error generating PDF:", error);
       alert("Failed to generate PDF report.");
-    } finally {
-      if (previousTab !== 'analyze') {
-        setActiveTab(previousTab);
-      }
     }
   };
 
@@ -338,7 +333,7 @@ export const App: React.FC = () => {
         {activeTab === 'analyze' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             {results ? (
-              <div ref={reportRef} className="bg-slate-50/50 p-4 -m-4 rounded-xl">
+              <div className="bg-slate-50/50 p-4 -m-4 rounded-xl">
                 <div className="mb-8 flex flex-col md:flex-row md:justify-between md:items-end gap-4">
                   <div>
                      <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{config.name}</h2>
@@ -380,6 +375,11 @@ export const App: React.FC = () => {
           </div>
         )}
       </main>
+      
+      {/* Hidden Report Container for PDF Generation */}
+      <div className="absolute left-[-9999px] top-0 w-[1000px]" ref={reportRef}>
+        <FullReport config={config} results={results} />
+      </div>
       
       {/* Footer */}
       <footer className="mt-auto py-8 border-t border-slate-200/60 bg-white/50 backdrop-blur-sm">
