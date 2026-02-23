@@ -252,6 +252,7 @@ export const App: React.FC = () => {
                 onChange={(dims) => setConfig({...config, dimensions: dims})}
                 lowerSpecLimit={config.lowerSpecLimit}
                 upperSpecLimit={config.upperSpecLimit}
+                results={results}
               />
               
               {config.dimensions.length > 0 && (
@@ -312,6 +313,18 @@ export const App: React.FC = () => {
           </div>
         )}
       </main>
+      
+      {/* Footer */}
+      <footer className="mt-auto py-8 border-t border-slate-200/60 bg-white/50 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-slate-500">
+          <div>
+            &copy; 2026 Prashant Fawade. All rights reserved.
+          </div>
+          <div className="flex items-center gap-1.5">
+            Built with <span className="font-medium text-slate-700">Gemini</span> and <span className="font-medium text-slate-700">Vercel</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };

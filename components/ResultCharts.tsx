@@ -14,6 +14,7 @@ import {
   Cell
 } from 'recharts';
 import { SimulationResult, StackupConfig } from '../types';
+import { Info } from 'lucide-react';
 
 interface Props {
   results: SimulationResult;
@@ -43,12 +44,26 @@ export const ResultCharts: React.FC<Props> = ({ results, config }) => {
             <h3 className="text-lg font-bold text-slate-800">Monte Carlo Simulation</h3>
             <p className="text-sm text-slate-500">Distribution of calculated gaps (10,000 iterations)</p>
           </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold text-blue-600">
-              {monteCarlo.mean.toFixed(3)} <span className="text-xs text-slate-400 font-normal">Mean</span>
+          <div className="text-right flex flex-col items-end">
+            <div className="flex items-center gap-1 group/tooltip relative">
+              <div className="text-2xl font-bold text-blue-600">
+                {monteCarlo.mean.toFixed(3)} <span className="text-xs text-slate-400 font-normal">Mean</span>
+              </div>
+              <Info size={14} className="text-slate-400 cursor-help" />
+              <div className="absolute bottom-full right-0 mb-2 hidden w-56 p-2.5 text-xs text-slate-100 bg-slate-800 rounded-lg shadow-xl group-hover/tooltip:block z-50 font-normal normal-case tracking-normal text-left">
+                The average gap or dimension resulting from the Monte Carlo simulation.
+                <div className="absolute top-full right-4 border-4 border-transparent border-t-slate-800"></div>
+              </div>
             </div>
-            <div className="text-sm text-slate-500">
-              σ = {monteCarlo.stdDev.toFixed(3)}
+            <div className="flex items-center gap-1 group/tooltip relative mt-1">
+              <div className="text-sm text-slate-500">
+                σ = {monteCarlo.stdDev.toFixed(3)}
+              </div>
+              <Info size={12} className="text-slate-400 cursor-help" />
+              <div className="absolute bottom-full right-0 mb-2 hidden w-56 p-2.5 text-xs text-slate-100 bg-slate-800 rounded-lg shadow-xl group-hover/tooltip:block z-50 font-normal normal-case tracking-normal text-left">
+                Standard Deviation (σ). Measures the amount of variation or dispersion of the simulated values.
+                <div className="absolute top-full right-4 border-4 border-transparent border-t-slate-800"></div>
+              </div>
             </div>
           </div>
         </div>
