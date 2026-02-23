@@ -1,14 +1,19 @@
 import React from 'react';
 import { Dimension, DimensionType, DistributionType } from '../types';
-import { Trash2, Plus, Info, MoveVertical, Settings2 } from 'lucide-react';
+import { Trash2, Plus, Info, MoveVertical, Settings2, AlertTriangle } from 'lucide-react';
 import { MANUFACTURING_PROCESSES } from '../constants';
 
 interface Props {
   dimensions: Dimension[];
   onChange: (dims: Dimension[]) => void;
+  lowerSpecLimit?: number;
+  upperSpecLimit?: number;
 }
 
-export const DimensionEditor: React.FC<Props> = ({ dimensions, onChange }) => {
+export const DimensionEditor: React.FC<Props> = ({ dimensions, onChange, lowerSpecLimit, upperSpecLimit }) => {
+  const maxTolMinus = Math.max(...dimensions.map(d => d.tolMinus || 0), 0.001);
+  const maxTolPlus = Math.max(...dimensions.map(d => d.tolPlus || 0), 0.001);
+
   const addDimension = () => {
     const newDim: Dimension = {
       id: Math.random().toString(36).substr(2, 9),
@@ -77,7 +82,7 @@ export const DimensionEditor: React.FC<Props> = ({ dimensions, onChange }) => {
               <th className="px-4 py-4 w-24">Nominal</th>
               <th className="px-4 py-4 w-20 text-emerald-700">Tol (+)</th>
               <th className="px-4 py-4 w-20 text-rose-700">Tol (-)</th>
-              <th className="px-4 py-4 w-24 text-slate-400">Limits (L/H)</th>
+              <th className="px-4 py-4 w-40 text-slate-400">Range Visualizer</th>
               <th className="px-4 py-4 min-w-[120px]">Distribution</th>
               <th className="px-4 py-4 w-10"></th>
             </tr>
@@ -94,12 +99,19 @@ export const DimensionEditor: React.FC<Props> = ({ dimensions, onChange }) => {
                  </td>
                </tr>
             )}
-            {dimensions.map((dim, idx) => (
-              <tr key={dim.id} className="hover:bg-blue-50/30 group transition-colors">
+            {dimensions.map((dim, idx) => {
+              const dimLSL = dim.nominal - dim.tolMinus;
+              const dimUSL = dim.nominal + dim.tolPlus;
+              const exceedsLimits = (lowerSpecLimit !== undefined && dimLSL < lowerSpecLimit) || 
+                                    (upperSpecLimit !== undefined && dimUSL > upperSpecLimit);
+
+              return (
+              <tr key={dim.id} className={`group transition-colors ${exceedsLimits ? 'bg-rose-50/50 hover:bg-rose-50' : 'hover:bg-blue-50/30'}`}>
                 <td className="px-4 py-3">
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-mono text-slate-300 w-4">{idx + 1}</span>
+                      {exceedsLimits && <AlertTriangle size={14} className="text-rose-500 shrink-0" title="Dimension range exceeds target limits" />}
                       <input 
                         type="text" 
                         value={dim.name} 
@@ -180,16 +192,26 @@ export const DimensionEditor: React.FC<Props> = ({ dimensions, onChange }) => {
                   />
                 </td>
                 
-                {/* Calculated Limits */}
+                {/* Calculated Limits & Visualizer */}
                 <td className="px-4 py-3 align-top">
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                      <span>L:</span>
-                      <span className="font-bold">{(dim.nominal - dim.tolMinus).toFixed(2)}</span>
+                  <div 
+                    className="flex flex-col gap-2 pt-1 w-32 cursor-help" 
+                    title={`Range: ${(dim.nominal - dim.tolMinus).toFixed(3)} to ${(dim.nominal + dim.tolPlus).toFixed(3)}\nSpread: ${(dim.tolPlus + dim.tolMinus).toFixed(3)}`}
+                  >
+                    <div className={`flex justify-between text-[10px] font-mono leading-none ${exceedsLimits ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
+                      <span>{(dim.nominal - dim.tolMinus).toFixed(2)}</span>
+                      <span>{(dim.nominal + dim.tolPlus).toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                      <span>H:</span>
-                      <span className="font-bold">{(dim.nominal + dim.tolPlus).toFixed(2)}</span>
+                    <div className={`relative h-2.5 bg-slate-100 rounded-full w-full flex items-center overflow-hidden ring-1 ${exceedsLimits ? 'ring-rose-300' : 'ring-slate-200/50'}`}>
+                      <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-slate-400 z-10"></div>
+                      <div 
+                        className="absolute right-1/2 h-full bg-rose-400 opacity-80 transition-all duration-300"
+                        style={{ width: `${(dim.tolMinus / maxTolMinus) * 50}%` }}
+                      ></div>
+                      <div 
+                        className="absolute left-1/2 h-full bg-emerald-400 opacity-80 transition-all duration-300"
+                        style={{ width: `${(dim.tolPlus / maxTolPlus) * 50}%` }}
+                      ></div>
                     </div>
                   </div>
                 </td>
@@ -226,7 +248,8 @@ export const DimensionEditor: React.FC<Props> = ({ dimensions, onChange }) => {
                   </button>
                 </td>
               </tr>
-            ))}
+            );
+            })}
           </tbody>
         </table>
       </div>

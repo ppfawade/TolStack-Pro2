@@ -250,6 +250,8 @@ export const App: React.FC = () => {
               <DimensionEditor 
                 dimensions={config.dimensions}
                 onChange={(dims) => setConfig({...config, dimensions: dims})}
+                lowerSpecLimit={config.lowerSpecLimit}
+                upperSpecLimit={config.upperSpecLimit}
               />
               
               {config.dimensions.length > 0 && (
