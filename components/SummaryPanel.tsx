@@ -32,13 +32,13 @@ export const SummaryPanel: React.FC<Props> = ({ results, config }) => {
   const { cp, cpk } = calculateCapabilities();
 
   const ResultCard = ({ title, min, max, type, colorClass, icon: Icon, tooltip }: any) => (
-    <div className="p-5 rounded-2xl bg-white/90 backdrop-blur-sm shadow-sm border border-slate-200/60 relative overflow-hidden group hover:shadow-md transition-all">
-      <div className={`absolute top-0 left-0 w-1.5 h-full ${colorClass}`}></div>
+    <div className="p-5 rounded-2xl bg-white/90 backdrop-blur-sm shadow-sm border border-slate-200/60 relative group hover:shadow-md transition-all">
+      <div className={`absolute top-0 left-0 w-1.5 h-full rounded-l-2xl ${colorClass}`}></div>
       <div className="flex justify-between items-start mb-4">
         <div className="flex items-center gap-1.5 group/tooltip relative">
           <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest">{title}</h4>
           <Info size={14} className="text-slate-400 cursor-help" />
-          <div className="absolute bottom-full left-0 mb-2 hidden w-64 p-3 text-xs text-slate-100 bg-slate-800 rounded-lg shadow-xl group-hover/tooltip:block z-50 font-normal normal-case tracking-normal leading-relaxed">
+          <div className="absolute bottom-full left-0 mb-2 hidden w-64 p-3 text-xs text-slate-100 bg-slate-800 rounded-lg shadow-xl group-hover/tooltip:block z-[100] font-normal normal-case tracking-normal leading-relaxed">
             {tooltip}
             <div className="absolute top-full left-4 border-4 border-transparent border-t-slate-800"></div>
           </div>
@@ -92,9 +92,11 @@ export const SummaryPanel: React.FC<Props> = ({ results, config }) => {
       </div>
 
       {/* Yield & Capabilities */}
-      <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl p-6 shadow-xl shadow-slate-200 flex flex-col justify-center relative overflow-hidden">
+      <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl p-6 shadow-xl shadow-slate-200 flex flex-col justify-center relative">
         {/* Background texture for card */}
-        <Gauge className="absolute -bottom-6 -right-6 text-white opacity-5 w-32 h-32" />
+        <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
+          <Gauge className="absolute -bottom-6 -right-6 text-white opacity-5 w-32 h-32" />
+        </div>
         
         {!isSpecDefined ? (
           <div className="text-center opacity-80 py-2">

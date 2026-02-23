@@ -1,14 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StackupConfig } from './types';
 import { calculateStackup } from './utils/calculationService';
 import { DimensionEditor } from './components/DimensionEditor';
 import { ResultCharts } from './components/ResultCharts';
 import { SummaryPanel } from './components/SummaryPanel';
-import { ArrowRight, Save, Upload, RotateCcw, Box, Layers, BarChart3, Calculator, Ruler, DraftingCompass, Grid, Settings2, Gauge, Wand2 } from 'lucide-react';
+import { ArrowRight, Save, Upload, RotateCcw, Box, Layers, BarChart3, Calculator, Ruler, DraftingCompass, Grid, Settings2, Gauge, Wand2, FileJson, FileText, ChevronDown } from 'lucide-react';
 import { MANUFACTURING_PROCESSES } from './constants';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'build' | 'analyze'>('build');
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
   const [config, setConfig] = useState<StackupConfig>({
     id: 'default',
     name: 'New Stackup Analysis',
@@ -31,7 +35,7 @@ export const App: React.FC = () => {
     }
   }, [config.dimensions, config.upperSpecLimit, config.lowerSpecLimit]);
 
-  const handleExport = () => {
+  const handleExportJSON = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(config));
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute("href", dataStr);
@@ -39,6 +43,49 @@ export const App: React.FC = () => {
     document.body.appendChild(downloadAnchorNode);
     downloadAnchorNode.click();
     downloadAnchorNode.remove();
+    setIsExportMenuOpen(false);
+  };
+
+  const handleExportPDF = async () => {
+    setIsExportMenuOpen(false);
+    if (!reportRef.current) return;
+    
+    // Switch to analyze tab if not already there to ensure charts are rendered
+    const previousTab = activeTab;
+    if (activeTab !== 'analyze') {
+      setActiveTab('analyze');
+      // Wait for render
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    try {
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#f8fafc' // slate-50
+      });
+      
+      const imgData = canvas.toDataURL('image/jpeg', 1.0);
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`tolstack_report_${config.name.replace(/\s+/g, '_')}.pdf`);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Failed to generate PDF report.");
+    } finally {
+      if (previousTab !== 'analyze') {
+        setActiveTab(previousTab);
+      }
+    }
   };
 
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -99,9 +146,30 @@ export const App: React.FC = () => {
                <Upload size={16} /> Import
                <input type="file" className="hidden" accept=".json" onChange={handleImport} />
              </label>
-             <button onClick={handleExport} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors">
-               <Save size={16} /> Export
-             </button>
+             <div className="relative">
+               <button 
+                 onClick={() => setIsExportMenuOpen(!isExportMenuOpen)} 
+                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+               >
+                 <Save size={16} /> Export <ChevronDown size={14} />
+               </button>
+               {isExportMenuOpen && (
+                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-200 py-1 z-50">
+                   <button 
+                     onClick={handleExportJSON}
+                     className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2"
+                   >
+                     <FileJson size={16} /> Export as JSON
+                   </button>
+                   <button 
+                     onClick={handleExportPDF}
+                     className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2"
+                   >
+                     <FileText size={16} /> Export as PDF Report
+                   </button>
+                 </div>
+               )}
+             </div>
           </div>
         </div>
       </header>
@@ -272,7 +340,7 @@ export const App: React.FC = () => {
         {activeTab === 'analyze' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             {results ? (
-              <>
+              <div ref={reportRef} className="bg-slate-50/50 p-4 -m-4 rounded-xl">
                 <div className="mb-8 flex flex-col md:flex-row md:justify-between md:items-end gap-4">
                   <div>
                      <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{config.name}</h2>
@@ -287,6 +355,7 @@ export const App: React.FC = () => {
                   <button 
                     onClick={() => setActiveTab('build')}
                     className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:text-blue-600 hover:border-blue-200 hover:shadow-sm transition-all"
+                    data-html2canvas-ignore
                   >
                     <RotateCcw size={16} /> Edit Stack
                   </button>
@@ -294,7 +363,7 @@ export const App: React.FC = () => {
 
                 <SummaryPanel results={results} config={config} />
                 <ResultCharts results={results} config={config} />
-              </>
+              </div>
             ) : (
               <div className="text-center py-32 bg-white/80 backdrop-blur-sm rounded-3xl border-2 border-dashed border-slate-200">
                 <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
