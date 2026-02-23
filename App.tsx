@@ -6,7 +6,7 @@ import { ResultCharts } from './components/ResultCharts';
 import { SummaryPanel } from './components/SummaryPanel';
 import { ArrowRight, Save, Upload, RotateCcw, Box, Layers, BarChart3, Calculator, Ruler, DraftingCompass, Grid, Settings2, Gauge, Wand2, FileJson, FileText, ChevronDown } from 'lucide-react';
 import { MANUFACTURING_PROCESSES } from './constants';
-import html2canvas from 'html2canvas';
+import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
 
 export const App: React.FC = () => {
@@ -59,24 +59,22 @@ export const App: React.FC = () => {
     }
 
     try {
-      const canvas = await html2canvas(reportRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
+      const imgData = await toPng(reportRef.current, {
+        cacheBust: true,
         backgroundColor: '#f8fafc' // slate-50
       });
       
-      const imgData = canvas.toDataURL('image/jpeg', 1.0);
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4'
       });
       
+      const imgProps = pdf.getImageProperties(imgData);
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
       
-      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(`tolstack_report_${config.name.replace(/\s+/g, '_')}.pdf`);
     } catch (error) {
       console.error("Error generating PDF:", error);
