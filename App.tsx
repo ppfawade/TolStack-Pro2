@@ -152,8 +152,8 @@ export const App: React.FC = () => {
                       <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Target Min (LSL)</label>
                       <input 
                         type="number" 
-                        value={config.lowerSpecLimit || ''}
-                        onChange={(e) => setConfig({...config, lowerSpecLimit: parseFloat(e.target.value)})}
+                        value={Number.isNaN(config.lowerSpecLimit) ? '' : (config.lowerSpecLimit ?? '')}
+                        onChange={(e) => setConfig({...config, lowerSpecLimit: e.target.value === '' ? undefined : parseFloat(e.target.value)})}
                         placeholder="Optional"
                         className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                       />
@@ -162,8 +162,8 @@ export const App: React.FC = () => {
                       <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Target Max (USL)</label>
                       <input 
                         type="number" 
-                        value={config.upperSpecLimit || ''}
-                        onChange={(e) => setConfig({...config, upperSpecLimit: parseFloat(e.target.value)})}
+                        value={Number.isNaN(config.upperSpecLimit) ? '' : (config.upperSpecLimit ?? '')}
+                        onChange={(e) => setConfig({...config, upperSpecLimit: e.target.value === '' ? undefined : parseFloat(e.target.value)})}
                         placeholder="Optional"
                         className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                       />

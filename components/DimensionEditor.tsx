@@ -165,7 +165,7 @@ export const DimensionEditor: React.FC<Props> = ({ dimensions, onChange, lowerSp
                 <td className="px-4 py-3 align-top">
                   <input 
                     type="number" 
-                    value={dim.nominal} 
+                    value={Number.isNaN(dim.nominal) ? '' : dim.nominal} 
                     onChange={(e) => updateDimension(dim.id, 'nominal', parseFloat(e.target.value))}
                     className="w-20 rounded-lg border-0 bg-slate-50 py-2 px-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 focus:ring-2 focus:ring-inset focus:ring-blue-600 text-sm font-mono"
                     placeholder="Nom"
@@ -175,7 +175,7 @@ export const DimensionEditor: React.FC<Props> = ({ dimensions, onChange, lowerSp
                   <input 
                     type="number" 
                     step="0.001"
-                    value={dim.tolPlus} 
+                    value={Number.isNaN(dim.tolPlus) ? '' : dim.tolPlus} 
                     onChange={(e) => updateDimension(dim.id, 'tolPlus', parseFloat(e.target.value))}
                     className="w-16 rounded-lg border-0 bg-emerald-50 py-2 px-2 text-emerald-700 shadow-sm ring-1 ring-inset ring-emerald-200 focus:ring-2 focus:ring-inset focus:ring-emerald-600 text-xs font-mono"
                     placeholder="+Tol"
@@ -185,7 +185,7 @@ export const DimensionEditor: React.FC<Props> = ({ dimensions, onChange, lowerSp
                   <input 
                     type="number" 
                     step="0.001"
-                    value={dim.tolMinus} 
+                    value={Number.isNaN(dim.tolMinus) ? '' : dim.tolMinus} 
                     onChange={(e) => updateDimension(dim.id, 'tolMinus', parseFloat(e.target.value))}
                     className="w-16 rounded-lg border-0 bg-rose-50 py-2 px-2 text-rose-700 shadow-sm ring-1 ring-inset ring-rose-200 focus:ring-2 focus:ring-inset focus:ring-rose-600 text-xs font-mono"
                     placeholder="-Tol"
@@ -232,9 +232,10 @@ export const DimensionEditor: React.FC<Props> = ({ dimensions, onChange, lowerSp
                       <input 
                         type="number" 
                         step="0.1"
-                        value={dim.cpk || 1.33}
+                        value={dim.cpk === undefined || Number.isNaN(dim.cpk) ? '' : dim.cpk}
                         onChange={(e) => updateDimension(dim.id, 'cpk', parseFloat(e.target.value))}
                         className="w-10 bg-transparent border-b border-slate-200 p-0 text-center text-slate-600 focus:outline-none focus:border-blue-500"
+                        placeholder="1.33"
                       />
                     </div>
                   )}
