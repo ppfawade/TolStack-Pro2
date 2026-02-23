@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Dimension, SimulationResult } from '../types';
 
 interface Props {
@@ -7,221 +7,231 @@ interface Props {
 }
 
 export const StackupPlot: React.FC<Props> = ({ dimensions, results }) => {
-  if (dimensions.length === 0 || !results) return null;
+  const plotData = useMemo(() => {
+    let currentPos = 0;
+    const data = dimensions.map((d, i) => {
+      const start = currentPos;
+      const change = d.nominal * d.sign;
+      const end = currentPos + change;
+      currentPos = end;
+      return {
+        ...d,
+        start,
+        end,
+        change,
+        index: i
+      };
+    });
+    
+    const totalNominal = currentPos;
+    return { data, totalNominal };
+  }, [dimensions]);
 
-  // Calculate cumulative nominals
-  let currentPos = 0;
-  const bars = dimensions.map((dim, index) => {
-    const start = currentPos;
-    const end = currentPos + (dim.nominal * dim.sign);
-    currentPos = end;
-    return {
-      ...dim,
-      index,
-      start,
-      end,
-      value: dim.nominal * dim.sign,
-      label: `#${index + 1} ${dim.name}`
-    };
-  });
+  if (dimensions.length === 0) return null;
 
-  const finalNominal = currentPos;
+  // Calculate bounds for scaling
+  const allPoints = plotData.data.flatMap(d => [d.start, d.end, d.end + d.tolPlus, d.end - d.tolMinus]);
+  if (results) {
+    allPoints.push(results.worstCase.min, results.worstCase.max);
+    allPoints.push(results.rss.min, results.rss.max);
+  }
   
-  // Find min and max values to scale the plot
-  let minVal = 0;
-  let maxVal = 0;
+  // Add 0 to ensure we see the start
+  allPoints.push(0);
+
+  const minX = Math.min(...allPoints);
+  const maxX = Math.max(...allPoints);
+  const range = maxX - minX || 1;
+  const padding = range * 0.15; // 15% padding
   
-  bars.forEach(bar => {
-    minVal = Math.min(minVal, bar.start, bar.end);
-    maxVal = Math.max(maxVal, bar.start, bar.end);
-  });
-  
-  // Include tolerances in min/max
-  minVal = Math.min(minVal, results.worstCase.min);
-  maxVal = Math.max(maxVal, results.worstCase.max);
-  
-  // Add some padding
-  const range = maxVal - minVal;
-  const padding = range * 0.1 || 1;
-  const plotMin = minVal - padding;
-  const plotMax = maxVal + padding;
+  const plotMin = minX - padding;
+  const plotMax = maxX + padding;
   const plotRange = plotMax - plotMin;
 
-  const getPercentage = (val: number) => ((val - plotMin) / plotRange) * 100;
+  const width = 800;
+  const rowHeight = 40;
+  const headerHeight = 30;
+  const footerHeight = results ? 120 : 20;
+  const height = headerHeight + (dimensions.length * rowHeight) + footerHeight;
+  
+  const xScale = (val: number) => ((val - plotMin) / plotRange) * width;
 
   return (
-    <div className="w-full bg-white p-6 rounded-2xl shadow-sm border border-slate-200/60 mb-6">
-      <h3 className="text-sm font-bold text-slate-500 uppercase mb-6">Outputs: Stackup plot with worst case & root sum squared (RSS) tolerances</h3>
+    <div className="w-full overflow-x-auto bg-white rounded-xl border border-slate-200 p-6 mb-6">
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="text-sm font-bold text-slate-900">Stackup Visualization</h3>
+        <div className="flex gap-4 text-xs">
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 bg-blue-500 rounded-sm opacity-80"></div>
+            <span className="text-slate-600">Positive Contribution</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 bg-rose-500 rounded-sm opacity-80"></div>
+            <span className="text-slate-600">Negative Contribution</span>
+          </div>
+        </div>
+      </div>
       
-      <div className="relative w-full text-xs font-mono">
-        {/* Zero line (or final nominal line) */}
-        <div 
-          className="absolute top-0 bottom-0 w-px bg-slate-400 z-0"
-          style={{ left: `${getPercentage(finalNominal)}%` }}
-        ></div>
+      <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} className="font-sans text-xs overflow-visible">
+        {/* Grid lines */}
+        <line x1={xScale(0)} y1={0} x2={xScale(0)} y2={height} stroke="#cbd5e1" strokeWidth={1} />
         
-        {/* Dimensions Bars */}
-        <div className="space-y-4 relative z-10">
-          {bars.map((bar) => {
-            const left = Math.min(bar.start, bar.end);
-            const width = Math.abs(bar.end - bar.start);
-            const isPositive = bar.end > bar.start;
-            
-            return (
-              <div key={bar.id} className="flex items-center group">
-                <div className="w-48 text-right pr-4 text-indigo-900 text-sm truncate" title={bar.label}>
-                  {bar.label}
-                </div>
-                <div className="flex-1 relative h-6">
-                  <div 
-                    className="absolute h-full bg-[#2e2b70] rounded-sm flex items-center px-2 text-white text-[10px] overflow-hidden whitespace-nowrap"
-                    style={{ 
-                      left: `${getPercentage(left)}%`, 
-                      width: `${(width / plotRange) * 100}%`,
-                      justifyContent: isPositive ? 'flex-end' : 'flex-start'
-                    }}
-                  >
-                  </div>
-                  <div 
-                    className="absolute top-1/2 -translate-y-1/2 text-[10px] text-slate-600"
-                    style={{ 
-                      left: isPositive ? `${getPercentage(bar.end) + 1}%` : 'auto',
-                      right: !isPositive ? `${100 - getPercentage(bar.end) + 1}%` : 'auto'
-                    }}
-                  >
-                    {bar.value > 0 ? '' : '-'}{Math.abs(bar.value).toFixed(4)} ± {Math.max(bar.tolPlus, bar.tolMinus).toFixed(4)}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+        {/* Dimensions */}
+        {plotData.data.map((d, i) => {
+          const y = headerHeight + i * rowHeight;
+          const barStart = xScale(Math.min(d.start, d.end));
+          const barWidth = Math.abs(xScale(d.end) - xScale(d.start));
+          const color = d.sign === 1 ? "#3b82f6" : "#f43f5e"; // Blue for +, Red for -
           
-          {/* Average assembly dimension */}
-          <div className="flex items-center mt-6 pt-4">
-            <div className="w-48 text-right pr-4 text-slate-600 text-sm">
-              Average assembly dimension
-            </div>
-            <div className="flex-1 relative h-6">
-              <div 
-                className="absolute top-1/2 -translate-y-1/2 text-slate-700 font-bold"
-                style={{ left: `${getPercentage(finalNominal)}%`, transform: 'translateX(-50%)' }}
-              >
-                {finalNominal.toFixed(4)}
-              </div>
-            </div>
-          </div>
-          
-          {/* Worst case tolerance */}
-          <div className="flex items-center">
-            <div className="w-48 text-right pr-4 text-[#4598b5] text-sm">
-              Worse case tolerance
-            </div>
-            <div className="flex-1 relative h-6">
-              <div 
-                className="absolute h-4 top-1 bg-[#4598b5] rounded-sm"
-                style={{ 
-                  left: `${getPercentage(results.worstCase.min)}%`, 
-                  width: `${((results.worstCase.max - results.worstCase.min) / plotRange) * 100}%` 
-                }}
-              ></div>
-              <div 
-                className="absolute top-1/2 -translate-y-1/2 text-[10px] text-slate-600"
-                style={{ right: `${100 - getPercentage(results.worstCase.min) + 1}%` }}
-              >
-                {(results.worstCase.min - finalNominal).toFixed(4)}
-              </div>
-              <div 
-                className="absolute top-1/2 -translate-y-1/2 text-[10px] text-slate-600"
-                style={{ left: `${getPercentage(results.worstCase.max) + 1}%` }}
-              >
-                {(results.worstCase.max - finalNominal).toFixed(4)}
-              </div>
-            </div>
-          </div>
-          
-          {/* RSS tolerance */}
-          <div className="flex items-center">
-            <div className="w-48 text-right pr-4 text-[#e87a74] text-sm">
-              RSS tolerance
-            </div>
-            <div className="flex-1 relative h-6">
-              <div 
-                className="absolute h-4 top-1 bg-[#e87a74] rounded-sm"
-                style={{ 
-                  left: `${getPercentage(results.rss.min)}%`, 
-                  width: `${((results.rss.max - results.rss.min) / plotRange) * 100}%` 
-                }}
-              ></div>
-              <div 
-                className="absolute top-1/2 -translate-y-1/2 text-[10px] text-slate-600"
-                style={{ right: `${100 - getPercentage(results.rss.min) + 1}%` }}
-              >
-                {(results.rss.min - finalNominal).toFixed(4)}
-              </div>
-              <div 
-                className="absolute top-1/2 -translate-y-1/2 text-[10px] text-slate-600"
-                style={{ left: `${getPercentage(results.rss.max) + 1}%` }}
-              >
-                {(results.rss.max - finalNominal).toFixed(4)}
-              </div>
-            </div>
-          </div>
-          
-        </div>
-      </div>
+          return (
+            <g key={d.id} className="group hover:opacity-100 transition-opacity">
+              {/* Label */}
+              <text x={10} y={y + rowHeight/2} dy=".35em" fill="#475569" fontSize={11} fontWeight="500">
+                #{i+1} {d.name.length > 20 ? d.name.substring(0, 20) + '...' : d.name}
+              </text>
+              
+              {/* Connecting line from previous */}
+              {i > 0 && (
+                <line 
+                  x1={xScale(d.start)} 
+                  y1={y - 10} 
+                  x2={xScale(d.start)} 
+                  y2={y + 10} 
+                  stroke="#cbd5e1" 
+                  strokeWidth={1} 
+                  strokeDasharray="2 2"
+                />
+              )}
 
-      <div className="mt-12">
-        <h3 className="text-sm font-bold text-slate-500 uppercase mb-6">Outputs: Dimension analysis with worst case and RSS tolerance failure rates</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left border-collapse">
-            <thead className="border-b border-slate-300 text-slate-900 font-bold">
-              <tr>
-                <th className="py-3 px-4 font-bold">Dimension</th>
-                <th className="py-3 px-4 font-bold">Nominal</th>
-                <th className="py-3 px-4 font-bold">Tolerance</th>
-                <th className="py-3 px-4 font-bold">Std. Deviation</th>
-                <th className="py-3 px-4 font-bold">Variance</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {dimensions.map((dim, index) => {
-                const tol = Math.max(dim.tolPlus, dim.tolMinus);
-                const stdDev = tol / (3 * (dim.cpk || 1.33));
-                const variance = stdDev * stdDev;
-                const isEven = index % 2 === 0;
-                
-                return (
-                  <tr key={dim.id} className={isEven ? 'bg-white' : 'bg-slate-50'}>
-                    <td className="py-3 px-4 text-slate-600">#{index + 1} {dim.name}</td>
-                    <td className="py-3 px-4 text-slate-600">{(dim.nominal * dim.sign).toFixed(4)}</td>
-                    <td className="py-3 px-4 text-slate-600">± {tol.toFixed(4)}</td>
-                    <td className="py-3 px-4 text-slate-600">{stdDev.toFixed(4)}</td>
-                    <td className="py-3 px-4 text-slate-600">{variance.toFixed(8)}</td>
-                  </tr>
-                );
-              })}
+              {/* Main Bar */}
+              <rect 
+                x={barStart} 
+                y={y + 8} 
+                width={Math.max(barWidth, 2)} 
+                height={rowHeight - 16} 
+                fill={color} 
+                opacity={0.9} 
+                rx={2}
+                className="hover:opacity-100 transition-opacity cursor-crosshair"
+              >
+                <title>{d.name}: {d.nominal} ±{d.tolPlus}/{d.tolMinus}</title>
+              </rect>
+
+              {/* Tolerance whiskers */}
+              <g opacity={0.6}>
+                <line 
+                  x1={xScale(d.end - d.tolMinus)} 
+                  y1={y + rowHeight/2} 
+                  x2={xScale(d.end + d.tolPlus)} 
+                  y2={y + rowHeight/2} 
+                  stroke="#1e293b" 
+                  strokeWidth={1} 
+                />
+                <line 
+                  x1={xScale(d.end - d.tolMinus)} 
+                  y1={y + 8} 
+                  x2={xScale(d.end - d.tolMinus)} 
+                  y2={y + rowHeight - 8} 
+                  stroke="#1e293b" 
+                  strokeWidth={1} 
+                />
+                <line 
+                  x1={xScale(d.end + d.tolPlus)} 
+                  y1={y + 8} 
+                  x2={xScale(d.end + d.tolPlus)} 
+                  y2={y + rowHeight - 8} 
+                  stroke="#1e293b" 
+                  strokeWidth={1} 
+                />
+              </g>
               
-              {/* Worst case stackup */}
-              <tr className="bg-cyan-100/50 font-medium">
-                <td className="py-3 px-4 text-slate-800">Worst case stackup</td>
-                <td className="py-3 px-4 text-slate-800">{finalNominal.toFixed(4)}</td>
-                <td className="py-3 px-4 text-slate-800">± {Math.max(results.worstCase.max - finalNominal, finalNominal - results.worstCase.min).toFixed(4)}</td>
-                <td className="py-3 px-4 text-slate-800">{(Math.max(results.worstCase.max - finalNominal, finalNominal - results.worstCase.min) / 3).toFixed(4)}</td>
-                <td className="py-3 px-4 text-slate-800">{Math.pow(Math.max(results.worstCase.max - finalNominal, finalNominal - results.worstCase.min) / 3, 2).toFixed(8)}</td>
-              </tr>
+              {/* Value label */}
+              <text x={xScale(d.end)} y={y + rowHeight/2 - 14} textAnchor="middle" fontSize={9} fill="#64748b" fontWeight="500">
+                {d.nominal.toFixed(3)}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Total / Results */}
+        {results && (
+          <g transform={`translate(0, ${headerHeight + dimensions.length * rowHeight + 20})`}>
+            {/* Nominal Line */}
+            <line 
+              x1={xScale(plotData.totalNominal)} 
+              y1={-20} 
+              x2={xScale(plotData.totalNominal)} 
+              y2={90} 
+              stroke="#64748b" 
+              strokeWidth={1} 
+              strokeDasharray="4 4" 
+            />
+            <text x={xScale(plotData.totalNominal)} y={-10} textAnchor="middle" fontSize={10} fill="#475569" fontWeight="bold">
+              Nominal: {plotData.totalNominal.toFixed(3)}
+            </text>
+
+            {/* Worst Case */}
+            <g transform="translate(0, 10)">
+              <text x={10} y={12} fill="#475569" fontSize={11} fontWeight="bold">Worst Case Stackup</text>
+              <rect 
+                x={xScale(results.worstCase.min)} 
+                y={0} 
+                width={Math.max(xScale(results.worstCase.max) - xScale(results.worstCase.min), 2)} 
+                height={20} 
+                fill="#0ea5e9" // Sky blue
+                opacity={0.2} 
+                rx={4}
+              />
+              <rect 
+                x={xScale(results.worstCase.min)} 
+                y={0} 
+                width={Math.max(xScale(results.worstCase.max) - xScale(results.worstCase.min), 2)} 
+                height={20} 
+                fill="none"
+                stroke="#0ea5e9"
+                strokeWidth={1}
+                rx={4}
+              />
+              {/* Min/Max markers */}
+              <line x1={xScale(results.worstCase.min)} y1={0} x2={xScale(results.worstCase.min)} y2={20} stroke="#0ea5e9" strokeWidth={2} />
+              <line x1={xScale(results.worstCase.max)} y1={0} x2={xScale(results.worstCase.max)} y2={20} stroke="#0ea5e9" strokeWidth={2} />
               
-              {/* RSS stackup */}
-              <tr className="bg-rose-200/50 font-medium">
-                <td className="py-3 px-4 text-slate-800">RSS stackup</td>
-                <td className="py-3 px-4 text-slate-800">{finalNominal.toFixed(4)}</td>
-                <td className="py-3 px-4 text-slate-800">± {Math.max(results.rss.max - finalNominal, finalNominal - results.rss.min).toFixed(4)}</td>
-                <td className="py-3 px-4 text-slate-800">{results.rss.sigma.toFixed(4)}</td>
-                <td className="py-3 px-4 text-slate-800">{Math.pow(results.rss.sigma, 2).toFixed(8)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+              <text x={xScale(results.worstCase.min)} y={32} textAnchor="middle" fontSize={10} fill="#0ea5e9" fontWeight="500">{results.worstCase.min.toFixed(3)}</text>
+              <text x={xScale(results.worstCase.max)} y={32} textAnchor="middle" fontSize={10} fill="#0ea5e9" fontWeight="500">{results.worstCase.max.toFixed(3)}</text>
+            </g>
+
+            {/* RSS */}
+            <g transform="translate(0, 55)">
+              <text x={10} y={12} fill="#475569" fontSize={11} fontWeight="bold">RSS Stackup (3σ)</text>
+              <rect 
+                x={xScale(results.rss.min)} 
+                y={0} 
+                width={Math.max(xScale(results.rss.max) - xScale(results.rss.min), 2)} 
+                height={20} 
+                fill="#f43f5e" // Rose
+                opacity={0.2} 
+                rx={4}
+              />
+              <rect 
+                x={xScale(results.rss.min)} 
+                y={0} 
+                width={Math.max(xScale(results.rss.max) - xScale(results.rss.min), 2)} 
+                height={20} 
+                fill="none"
+                stroke="#f43f5e"
+                strokeWidth={1}
+                rx={4}
+              />
+              {/* Min/Max markers */}
+              <line x1={xScale(results.rss.min)} y1={0} x2={xScale(results.rss.min)} y2={20} stroke="#f43f5e" strokeWidth={2} />
+              <line x1={xScale(results.rss.max)} y1={0} x2={xScale(results.rss.max)} y2={20} stroke="#f43f5e" strokeWidth={2} />
+
+              <text x={xScale(results.rss.min)} y={32} textAnchor="middle" fontSize={10} fill="#f43f5e" fontWeight="500">{results.rss.min.toFixed(3)}</text>
+              <text x={xScale(results.rss.max)} y={32} textAnchor="middle" fontSize={10} fill="#f43f5e" fontWeight="500">{results.rss.max.toFixed(3)}</text>
+            </g>
+          </g>
+        )}
+      </svg>
     </div>
   );
 };
