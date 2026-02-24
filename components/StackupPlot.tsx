@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Dimension, SimulationResult } from '../types';
 
 interface Props {
@@ -7,6 +7,8 @@ interface Props {
 }
 
 export const StackupPlot: React.FC<Props> = ({ dimensions, results }) => {
+  const [tooltip, setTooltip] = useState<{x: number, y: number, data: any} | null>(null);
+
   const plotData = useMemo(() => {
     let currentPos = 0;
     const data = dimensions.map((d, i) => {
@@ -113,9 +115,16 @@ export const StackupPlot: React.FC<Props> = ({ dimensions, results }) => {
                 opacity={0.9} 
                 rx={2}
                 className="hover:opacity-100 transition-opacity cursor-crosshair"
-              >
-                <title>{d.name}: {d.nominal} ±{d.tolPlus}/{d.tolMinus}</title>
-              </rect>
+                onMouseEnter={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setTooltip({
+                    x: rect.left + rect.width / 2,
+                    y: rect.top,
+                    data: d
+                  });
+                }}
+                onMouseLeave={() => setTooltip(null)}
+              />
 
               {/* Tolerance whiskers */}
               <g opacity={0.6}>
@@ -232,6 +241,26 @@ export const StackupPlot: React.FC<Props> = ({ dimensions, results }) => {
           </g>
         )}
       </svg>
+
+      {/* Interactive Tooltip */}
+      {tooltip && (
+        <div 
+          className="fixed z-50 bg-slate-900/95 backdrop-blur-sm text-white text-xs rounded-lg p-3 shadow-xl pointer-events-none transform -translate-x-1/2 -translate-y-full"
+          style={{ left: tooltip.x, top: tooltip.y - 8 }}
+        >
+          <div className="font-bold mb-2 pb-1 border-b border-slate-700">{tooltip.data.name}</div>
+          <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-slate-300">
+            <span>Nominal:</span>
+            <span className="text-right font-mono text-white">{tooltip.data.nominal.toFixed(3)}</span>
+            <span>Tolerance:</span>
+            <span className="text-right font-mono text-white">+{tooltip.data.tolPlus} / -{tooltip.data.tolMinus}</span>
+            <span>Distribution:</span>
+            <span className="text-right text-white">{tooltip.data.distribution}</span>
+          </div>
+          {/* Arrow */}
+          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 rotate-45 w-2 h-2 bg-slate-900/95"></div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Dimension, DimensionType, DistributionType, SimulationResult } from '../types';
-import { Trash2, Plus, Info, MoveVertical, Settings2, AlertTriangle } from 'lucide-react';
+import { Trash2, Plus, Minus, Info, MoveVertical, Settings2, ChevronDown } from 'lucide-react';
 import { MANUFACTURING_PROCESSES } from '../constants';
 import { StackupPlot } from './StackupPlot';
 
@@ -85,13 +85,14 @@ export const DimensionEditor: React.FC<Props> = ({ dimensions, onChange, lowerSp
           <table className="w-full text-sm text-left">
             <thead className="bg-slate-50/80 text-slate-500 font-semibold uppercase text-xs tracking-wider">
               <tr>
-                <th className="px-4 py-4 min-w-[150px]">Name & Type</th>
-                <th className="px-4 py-4 min-w-[140px]">Process (Auto-Tol)</th>
-                <th className="px-4 py-4 w-24">Nominal</th>
-                <th className="px-4 py-4 w-20 text-emerald-700">Tol (+)</th>
-                <th className="px-4 py-4 w-20 text-rose-700">Tol (-)</th>
-                <th className="px-4 py-4 min-w-[120px]">Distribution</th>
-                <th className="px-4 py-4 w-10"></th>
+                <th className="px-2 py-3 w-24 text-center text-xs font-bold text-slate-900 uppercase tracking-wider">Direction</th>
+                <th className="px-2 py-3 min-w-[180px] text-xs font-bold text-slate-900 uppercase tracking-wider">Name & Type</th>
+                <th className="px-2 py-3 min-w-[140px] text-xs font-bold text-slate-900 uppercase tracking-wider">Process (Auto-Tol)</th>
+                <th className="px-2 py-3 min-w-[100px] text-center text-xs font-bold text-slate-900 uppercase tracking-wider">Nominal</th>
+                <th className="px-2 py-3 min-w-[100px] text-center text-xs font-bold text-emerald-700 uppercase tracking-wider">Tol (+)</th>
+                <th className="px-2 py-3 min-w-[100px] text-center text-xs font-bold text-rose-700 uppercase tracking-wider">Tol (-)</th>
+                <th className="px-2 py-3 min-w-[200px] text-xs font-bold text-slate-900 uppercase tracking-wider">Distribution</th>
+                <th className="px-2 py-3 w-10"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -107,128 +108,150 @@ export const DimensionEditor: React.FC<Props> = ({ dimensions, onChange, lowerSp
                  </tr>
               )}
               {dimensions.map((dim, idx) => {
-                const dimLSL = dim.nominal - dim.tolMinus;
-                const dimUSL = dim.nominal + dim.tolPlus;
-                const exceedsLimits = (lowerSpecLimit !== undefined && dimLSL < lowerSpecLimit) || 
-                                      (upperSpecLimit !== undefined && dimUSL > upperSpecLimit);
-
                 return (
-                <tr key={dim.id} className={`group transition-colors ${exceedsLimits ? 'bg-rose-50/50 hover:bg-rose-50' : 'hover:bg-blue-50/30'}`}>
-                  <td className="px-4 py-3">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono text-slate-300 w-4">{idx + 1}</span>
-                        {exceedsLimits && <AlertTriangle size={14} className="text-rose-500 shrink-0" title="Dimension range exceeds target limits" />}
-                        <input 
-                          type="text" 
-                          value={dim.name} 
-                          onChange={(e) => updateDimension(dim.id, 'name', e.target.value)}
-                          className="w-full bg-transparent border-b border-transparent focus:border-blue-500 focus:outline-none px-0 py-0.5 font-medium text-slate-900 placeholder-slate-300"
-                          placeholder="Name"
-                        />
-                      </div>
-                      <div className="flex gap-1 pl-6">
-                        <select 
+                <tr key={dim.id} className="group hover:bg-slate-50 transition-colors">
+                  {/* Direction */}
+                  <td className="px-2 py-2 align-middle">
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-xs font-mono text-slate-400 w-4 text-right">{idx + 1}</span>
+                      <div className="relative">
+                        <div className={`flex items-center justify-center w-10 h-9 rounded-lg text-white shadow-sm transition-colors ${dim.sign === 1 ? 'bg-emerald-500' : 'bg-rose-500'}`}>
+                           {dim.sign === 1 ? <Plus size={18} strokeWidth={3} /> : <Minus size={18} strokeWidth={3} />}
+                           <ChevronDown size={12} className="ml-0.5 opacity-80" />
+                        </div>
+                        <select
                           value={dim.sign}
                           onChange={(e) => updateDimension(dim.id, 'sign', parseInt(e.target.value))}
-                          className={`block rounded-md border-0 py-0.5 px-1.5 text-white font-bold text-[10px] shadow-sm cursor-pointer ${dim.sign === 1 ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-rose-500 hover:bg-rose-600'}`}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                         >
-                          <option value={1}>+</option>
-                          <option value={-1}>-</option>
-                        </select>
-                        <select 
-                          value={dim.type}
-                          onChange={(e) => updateDimension(dim.id, 'type', e.target.value)}
-                          className="block rounded-md border-0 py-0.5 px-1.5 text-slate-600 text-[10px] font-medium shadow-sm ring-1 ring-inset ring-slate-200 bg-white cursor-pointer"
-                        >
-                          <option value={DimensionType.Linear}>Linear</option>
-                          <option value={DimensionType.Hole}>Hole</option>
-                          <option value={DimensionType.Shaft}>Shaft</option>
+                          <option value={1}>+ (Add)</option>
+                          <option value={-1}>- (Sub)</option>
                         </select>
                       </div>
                     </div>
                   </td>
+
+                  {/* Name & Type */}
+                  <td className="px-2 py-2 align-middle">
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="text" 
+                        maxLength={8}
+                        value={dim.name} 
+                        onChange={(e) => updateDimension(dim.id, 'name', e.target.value)}
+                        className="w-20 h-9 rounded-lg border border-slate-200 px-2 text-sm text-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none shadow-sm transition-all"
+                        placeholder="Name"
+                      />
+                      <select 
+                        value={dim.type}
+                        onChange={(e) => updateDimension(dim.id, 'type', e.target.value)}
+                        className="h-9 rounded-lg border border-slate-200 px-2 text-sm text-slate-700 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none bg-white cursor-pointer transition-all"
+                      >
+                        <option value={DimensionType.Linear}>Linear</option>
+                        <option value={DimensionType.Hole}>Hole</option>
+                        <option value={DimensionType.Shaft}>Shaft</option>
+                      </select>
+                    </div>
+                  </td>
                   
-                  {/* Manufacturing Process */}
-                  <td className="px-4 py-3 align-top">
-                    <select 
-                      value={dim.process || ''}
-                      onChange={(e) => updateDimension(dim.id, 'process', e.target.value)}
-                      className="w-full rounded-lg border-0 py-2 px-2 text-xs text-slate-700 font-medium shadow-sm ring-1 ring-inset ring-slate-200 focus:ring-2 focus:ring-inset focus:ring-blue-600 bg-white cursor-pointer"
-                    >
-                      <option value="">Custom / Manual</option>
-                      {MANUFACTURING_PROCESSES.map((proc, i) => (
-                        <option key={i} value={proc.process}>{proc.process}</option>
-                      ))}
-                    </select>
+                  {/* Process */}
+                  <td className="px-2 py-2 align-middle">
+                    <div className="relative">
+                      <select 
+                        value={dim.process || ''}
+                        onChange={(e) => updateDimension(dim.id, 'process', e.target.value)}
+                        className="w-full h-9 rounded-lg border border-slate-200 pl-2 pr-6 text-sm text-slate-700 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none bg-white cursor-pointer transition-all appearance-none"
+                      >
+                        <option value="">Custom / Manual</option>
+                        {MANUFACTURING_PROCESSES.map((proc, i) => (
+                          <option key={i} value={proc.process}>{proc.process}</option>
+                        ))}
+                      </select>
+                      <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    </div>
                     {dim.process && (
-                       <div className="mt-1 flex items-center gap-1 text-[10px] text-slate-400">
+                       <div className="mt-1 flex items-center gap-1 text-[10px] text-slate-400 px-1">
                          <Settings2 size={10} />
-                         <span>Auto-set: ±{MANUFACTURING_PROCESSES.find(p => p.process === dim.process)?.typicalTol}</span>
+                         <span>Auto: ±{MANUFACTURING_PROCESSES.find(p => p.process === dim.process)?.typicalTol}</span>
                        </div>
                     )}
                   </td>
 
-                  <td className="px-4 py-3 align-top">
+                  {/* Nominal */}
+                  <td className="px-2 py-2 align-middle">
                     <input 
                       type="number" 
+                      step="0.1"
                       value={Number.isNaN(dim.nominal) ? '' : dim.nominal} 
                       onChange={(e) => updateDimension(dim.id, 'nominal', parseFloat(e.target.value))}
-                      className="w-20 rounded-lg border-0 bg-slate-50 py-2 px-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 focus:ring-2 focus:ring-inset focus:ring-blue-600 text-sm font-mono"
+                      className="w-full h-9 rounded-lg border border-slate-200 bg-slate-50 px-2 text-center text-slate-900 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none font-mono text-sm transition-all"
                       placeholder="Nom"
                     />
                   </td>
-                  <td className="px-4 py-3 align-top">
+
+                  {/* Tol + */}
+                  <td className="px-2 py-2 align-middle">
                     <input 
                       type="number" 
-                      step="0.001"
+                      step="0.1"
                       value={Number.isNaN(dim.tolPlus) ? '' : dim.tolPlus} 
                       onChange={(e) => updateDimension(dim.id, 'tolPlus', parseFloat(e.target.value))}
-                      className="w-16 rounded-lg border-0 bg-emerald-50 py-2 px-2 text-emerald-700 shadow-sm ring-1 ring-inset ring-emerald-200 focus:ring-2 focus:ring-inset focus:ring-emerald-600 text-xs font-mono"
+                      className="w-full h-9 rounded-lg border border-emerald-200 bg-emerald-50 px-2 text-center text-emerald-700 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none font-mono text-sm transition-all"
                       placeholder="+Tol"
                     />
                   </td>
-                  <td className="px-4 py-3 align-top">
+
+                  {/* Tol - */}
+                  <td className="px-2 py-2 align-middle">
                     <input 
                       type="number" 
-                      step="0.001"
+                      step="0.1"
                       value={Number.isNaN(dim.tolMinus) ? '' : dim.tolMinus} 
                       onChange={(e) => updateDimension(dim.id, 'tolMinus', parseFloat(e.target.value))}
-                      className="w-16 rounded-lg border-0 bg-rose-50 py-2 px-2 text-rose-700 shadow-sm ring-1 ring-inset ring-rose-200 focus:ring-2 focus:ring-inset focus:ring-rose-600 text-xs font-mono"
+                      className="w-full h-9 rounded-lg border border-rose-200 bg-rose-50 px-2 text-center text-rose-700 shadow-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 outline-none font-mono text-sm transition-all"
                       placeholder="-Tol"
                     />
                   </td>
 
-                  <td className="px-4 py-3 align-top">
-                    <select 
-                      value={dim.distribution}
-                      onChange={(e) => updateDimension(dim.id, 'distribution', e.target.value)}
-                      className="w-full rounded-lg border-0 py-2 px-2 text-xs text-slate-600 bg-white ring-1 ring-inset ring-slate-200 focus:ring-2 focus:ring-blue-600 cursor-pointer"
-                    >
-                      {Object.values(DistributionType).map(t => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
-                    {dim.distribution === DistributionType.Normal && (
-                      <div className="mt-1 flex items-center gap-1 text-[10px] text-slate-400">
-                        <span>Cpk:</span>
-                        <input 
-                          type="number" 
-                          step="0.1"
-                          value={dim.cpk === undefined || Number.isNaN(dim.cpk) ? '' : dim.cpk}
-                          onChange={(e) => updateDimension(dim.id, 'cpk', parseFloat(e.target.value))}
-                          className="w-10 bg-transparent border-b border-slate-200 p-0 text-center text-slate-600 focus:outline-none focus:border-blue-500"
-                          placeholder="1.33"
-                        />
+                  {/* Distribution */}
+                  <td className="px-2 py-2 align-middle">
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <select 
+                          value={dim.distribution}
+                          onChange={(e) => updateDimension(dim.id, 'distribution', e.target.value)}
+                          className="w-full h-9 rounded-lg border border-slate-200 pl-2 pr-6 text-sm text-slate-700 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none bg-white cursor-pointer transition-all appearance-none"
+                        >
+                          {Object.values(DistributionType).map(t => (
+                            <option key={t} value={t}>{t}</option>
+                          ))}
+                        </select>
+                        <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                       </div>
-                    )}
+                      
+                      {dim.distribution === DistributionType.Normal && (
+                        <div className="flex items-center gap-1.5 bg-slate-50 rounded-lg border border-slate-200 px-2 h-9 shrink-0">
+                          <span className="text-xs text-slate-500 font-medium whitespace-nowrap">Cpk:</span>
+                          <input 
+                            type="number" 
+                            step="0.1"
+                            value={dim.cpk === undefined || Number.isNaN(dim.cpk) ? '' : dim.cpk}
+                            onChange={(e) => updateDimension(dim.id, 'cpk', parseFloat(e.target.value))}
+                            className="w-12 bg-transparent border-none p-0 text-center text-sm text-slate-700 focus:ring-0 placeholder-slate-400"
+                            placeholder="1.33"
+                          />
+                        </div>
+                      )}
+                    </div>
                   </td>
-                  <td className="px-4 py-3 text-right align-top">
+
+                  {/* Delete */}
+                  <td className="px-2 py-2 text-right align-middle">
                     <button 
                       onClick={() => removeDimension(dim.id)}
-                      className="text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-full p-2 transition-all opacity-0 group-hover:opacity-100"
+                      className="text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg p-2 transition-all"
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={18} />
                     </button>
                   </td>
                 </tr>
